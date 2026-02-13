@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Israeli Vehicle Lookup - חיפוש רכב ישראלי</title>
- 
+
   <!-- OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
- 
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
- 
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
@@ -18,7 +18,7 @@
       padding: 20px;
       direction: rtl;
     }
- 
+
     .container {
       max-width: 900px;
       margin: 0 auto;
@@ -27,44 +27,44 @@
       box-shadow: 0 25px 70px rgba(0,0,0,0.35);
       overflow: hidden;
     }
- 
+
     .header {
       background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
       color: white;
       padding: 35px;
       text-align: center;
     }
- 
+
     .header h1 { font-size: 32px; margin-bottom: 12px; font-weight: 700; }
     .header p { opacity: 0.95; font-size: 15px; }
- 
+
     .content { padding: 35px; }
- 
+
     .two-column {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 30px;
       margin-top: 25px;
     }
- 
+
     @media (max-width: 768px) {
       .two-column { grid-template-columns: 1fr; }
     }
- 
+
     .column {
       background: #f8f9fa;
       padding: 25px;
       border-radius: 16px;
       border: 2px solid #e0e0e0;
     }
- 
+
     .column h3 {
       color: #0066cc;
       margin-bottom: 18px;
       font-size: 19px;
       font-weight: 700;
     }
- 
+
     .upload-area {
       border: 3px dashed #0066cc;
       border-radius: 12px;
@@ -75,16 +75,16 @@
       background: white;
       margin-bottom: 18px;
     }
- 
+
     .upload-area:hover {
       border-color: #0047ab;
       background: #f0f7ff;
       transform: translateY(-2px);
     }
- 
+
     .upload-icon { font-size: 48px; margin-bottom: 12px; }
     input[type="file"] { display: none; }
- 
+
     .image-preview {
       position: relative;
       text-align: center;
@@ -93,7 +93,7 @@
       padding: 18px;
       border: 2px solid #e0e0e0;
     }
- 
+
     .image-preview img {
       max-width: 100%;
       max-height: 350px;
@@ -101,7 +101,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
       transform: scale(1);
     }
- 
+
     .remove-image {
       position: absolute;
       top: 24px;
@@ -118,9 +118,9 @@
       transition: all 0.2s;
       z-index: 10;
     }
- 
+
     .remove-image:hover { background: #d32f2f; transform: scale(1.15); }
- 
+
     .zoom-controls {
       margin-top: 12px;
       display: flex;
@@ -128,7 +128,7 @@
       justify-content: center;
       flex-wrap: wrap;
     }
- 
+
     .zoom-btn {
       padding: 9px 16px;
       background: #0066cc;
@@ -141,11 +141,11 @@
       transition: all 0.2s;
       white-space: nowrap;
     }
- 
+
     .zoom-btn:hover { background: #0047ab; transform: translateY(-1px); }
- 
+
     .input-group { margin-bottom: 20px; }
- 
+
     .input-group label {
       display: block;
       margin-bottom: 12px;
@@ -153,7 +153,7 @@
       color: #333;
       font-size: 16px;
     }
- 
+
     .input-group input {
       width: 100%;
       padding: 16px;
@@ -167,13 +167,13 @@
       background: white;
       direction: ltr;
     }
- 
+
     .input-group input:focus {
       outline: none;
       border-color: #0066cc;
       box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
     }
- 
+
     .format-hint {
       background: #fff3e0;
       padding: 12px;
@@ -184,7 +184,7 @@
       text-align: center;
       font-weight: 700;
     }
- 
+
     .btn {
       width: 100%;
       padding: 18px;
@@ -197,26 +197,23 @@
       cursor: pointer;
       transition: all 0.2s;
     }
- 
+
     .btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 102, 204, 0.4);
     }
- 
+
     .btn:active { transform: translateY(0); }
- 
+
     .btn.secondary {
       background: #ffffff;
       color: #0047ab;
       border: 2px solid #0047ab;
       box-shadow: none;
     }
- 
-    .btn.secondary:hover {
-      background: #f0f7ff;
-      box-shadow: none;
-    }
- 
+
+    .btn.secondary:hover { background: #f0f7ff; box-shadow: none; }
+
     .btn:disabled {
       background: #ccc;
       cursor: not-allowed;
@@ -225,14 +222,14 @@
       border: none;
       color: #666;
     }
- 
+
     .loading {
       text-align: center;
       padding: 25px;
       color: #0066cc;
       font-weight: 700;
     }
- 
+
     .spinner {
       border: 4px solid #f3f3f3;
       border-top: 4px solid #0066cc;
@@ -242,12 +239,12 @@
       animation: spin 1s linear infinite;
       margin: 20px auto;
     }
- 
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
- 
+
     .results {
       margin-top: 30px;
       padding: 28px;
@@ -256,19 +253,19 @@
       border-right: 5px solid #4caf50;
       animation: slideIn 0.4s;
     }
- 
+
     @keyframes slideIn {
       from { opacity: 0; transform: translateY(30px); }
       to { opacity: 1; transform: translateY(0); }
     }
- 
+
     .results h3 {
       color: #2e7d32;
       margin-bottom: 22px;
       font-size: 22px;
       font-weight: 700;
     }
- 
+
     .result-item {
       padding: 16px 0;
       border-bottom: 2px solid rgba(255,255,255,0.5);
@@ -277,16 +274,16 @@
       align-items: center;
       gap: 12px;
     }
- 
+
     .result-item:last-child { border-bottom: none; }
- 
+
     .result-label {
       font-weight: 700;
       color: #1b5e20;
       font-size: 15px;
       white-space: nowrap;
     }
- 
+
     .result-value {
       color: #1b5e20;
       font-weight: 700;
@@ -295,7 +292,7 @@
       direction: ltr;
       overflow-wrap: anywhere;
     }
- 
+
     .error {
       padding: 18px;
       background: #ffebee;
@@ -307,7 +304,7 @@
       font-weight: 700;
       line-height: 1.4;
     }
- 
+
     .status-message {
       margin-top: 15px;
       padding: 14px;
@@ -318,31 +315,31 @@
       animation: fadeIn 0.3s;
       line-height: 1.4;
     }
- 
+
     .status-message.processing {
       background: #fff3e0;
       color: #e65100;
       border: 2px solid #ff9800;
     }
- 
+
     .status-message.success {
       background: #e8f5e9;
       color: #2e7d32;
       border: 2px solid #4caf50;
     }
- 
+
     .status-message.info {
       background: #e3f2fd;
       color: #0d47a1;
       border: 2px solid #2196f3;
     }
- 
+
     .status-message.error {
       background: #ffebee;
       color: #c62828;
       border: 2px solid #d32f2f;
     }
- 
+
     .candidate-box {
       margin-top: 14px;
       padding: 14px;
@@ -351,21 +348,21 @@
       border: 2px solid #bbdefb;
       display: none;
     }
- 
+
     .candidate-title {
       font-weight: 800;
       margin-bottom: 8px;
       color: #0d47a1;
       font-size: 14px;
     }
- 
+
     .candidate-list {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       justify-content: center;
     }
- 
+
     .candidate-chip {
       padding: 8px 12px;
       border-radius: 999px;
@@ -376,117 +373,121 @@
       cursor: pointer;
       direction: ltr;
     }
- 
+
     .candidate-chip.active {
       background: #0d47a1;
       color: white;
     }
- 
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
     }
+
+    /* canvas hidden */
+    canvas { display: none; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h1>🚗 חיפוש רכב ישראלי</h1>
-      <p>OCR אוטומטי + חיפוש דרך Backend</p>
+      <p>OCR אוטומטי משופר + חיפוש דרך Backend</p>
     </div>
- 
+
     <div class="content">
       <div class="two-column">
         <!-- Image Column -->
         <div class="column">
           <h3>📸 העלה תמונת לוחית (OCR אוטומטי)</h3>
- 
+
           <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
             <div class="upload-icon">📷</div>
             <h4 style="margin-bottom: 8px;">לחץ או גרור תמונה</h4>
-            <p style="font-size: 14px; color: #666;">נזהה מספר ונחפש. אם לא נמצא — תוכל לנסות מועמד הבא.</p>
+            <p style="font-size: 14px; color: #666;">OCR ירוץ בכמה שיפורים אוטומטיים. אם לא נמצא, נסה “מועמד הבא”.</p>
             <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
           </div>
- 
+
           <div id="imagePreview" style="display: none;">
             <div class="image-preview">
               <button class="remove-image" onclick="removeImage()">✕</button>
               <img id="previewImage" src="" alt="Preview">
             </div>
- 
+
             <div class="zoom-controls">
               <button class="zoom-btn" onclick="zoom('in')">🔍 הגדל</button>
               <button class="zoom-btn" onclick="zoom('out')">🔍 הקטן</button>
               <button class="zoom-btn" onclick="zoom('reset')">↺ אפס</button>
               <button class="zoom-btn" id="btnTryNext" onclick="tryNextCandidate()" disabled>➡️ נסה מועמד הבא</button>
             </div>
- 
+
             <div id="candidateBox" class="candidate-box">
               <div class="candidate-title">מועמדים שזוהו (לחץ לבחור):</div>
               <div id="candidateList" class="candidate-list"></div>
             </div>
           </div>
- 
+
           <div id="statusMessage"></div>
         </div>
- 
+
         <!-- Input Column -->
         <div class="column">
           <h3>⌨️ או הזן מספר ידנית</h3>
- 
+
           <div class="format-hint">💡 הזן רק מספרים (7-8 ספרות)</div>
- 
+
           <div class="input-group">
             <label>מספר לוחית:</label>
             <input
               type="text"
               id="plateInput"
-              placeholder="60570703"
+              placeholder="3358931"
               maxlength="8"
               dir="ltr"
               inputmode="numeric"
             >
           </div>
- 
+
           <button class="btn" onclick="searchVehicle()">
             🔍 חפש במאגר
           </button>
         </div>
       </div>
- 
+
       <div id="loading" style="display: none;"></div>
       <div id="error" style="display: none;"></div>
       <div id="results" style="display: none;"></div>
+
+      <canvas id="workCanvas"></canvas>
     </div>
   </div>
- 
+
   <script>
     let zoomLevel = 1;
     let isOcrRunning = false;
- 
-    // candidates state
+
+    // candidates
     let ocrCandidates = [];
     let currentCandidateIndex = -1;
- 
-    // Server URL
+
     const SERVER_URL = 'https://israeli-vehicle-lookup.onrender.com';
- 
+
     function normalizePlate(input) {
       if (input === undefined || input === null) return '';
       return String(input).replace(/\D/g, '');
     }
- 
+
     function showStatus(message, type) {
       const statusDiv = document.getElementById('statusMessage');
       statusDiv.innerHTML = `<div class="status-message ${type}">${message}</div>`;
     }
- 
+
     function clearOutputs() {
       document.getElementById('error').style.display = 'none';
       document.getElementById('results').style.display = 'none';
       document.getElementById('loading').style.display = 'none';
     }
- 
+
     function resetCandidatesUI() {
       ocrCandidates = [];
       currentCandidateIndex = -1;
@@ -494,20 +495,20 @@
       document.getElementById('candidateBox').style.display = 'none';
       document.getElementById('candidateList').innerHTML = '';
     }
- 
+
     function renderCandidates() {
       const box = document.getElementById('candidateBox');
       const list = document.getElementById('candidateList');
- 
+
       if (!ocrCandidates.length) {
         box.style.display = 'none';
         list.innerHTML = '';
         return;
       }
- 
+
       box.style.display = 'block';
       list.innerHTML = '';
- 
+
       ocrCandidates.forEach((c, idx) => {
         const btn = document.createElement('button');
         btn.className = 'candidate-chip' + (idx === currentCandidateIndex ? ' active' : '');
@@ -517,126 +518,205 @@
           currentCandidateIndex = idx;
           document.getElementById('plateInput').value = ocrCandidates[currentCandidateIndex];
           renderCandidates();
+          setTryNextEnabled();
           await searchVehicle(ocrCandidates[currentCandidateIndex]);
         };
         list.appendChild(btn);
       });
     }
- 
+
     function setTryNextEnabled() {
       const btn = document.getElementById('btnTryNext');
       btn.disabled = !(ocrCandidates.length > 1 && currentCandidateIndex < ocrCandidates.length - 1);
     }
- 
-    // Drag and drop
+
+    // DnD
     const uploadArea = document.getElementById('uploadArea');
- 
+
     uploadArea.addEventListener('dragover', (e) => {
       e.preventDefault();
       uploadArea.style.borderColor = '#0047ab';
       uploadArea.style.background = '#f0f7ff';
     });
- 
+
     uploadArea.addEventListener('dragleave', () => {
       uploadArea.style.borderColor = '#0066cc';
       uploadArea.style.background = 'white';
     });
- 
+
     uploadArea.addEventListener('drop', async (e) => {
       e.preventDefault();
       uploadArea.style.borderColor = '#0066cc';
       uploadArea.style.background = 'white';
       const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        await processImageAndAutoSearch(files[0]);
-      }
+      if (files.length > 0) await processImageAndAutoSearch(files[0]);
     });
- 
+
     async function handleFileSelect(event) {
       const file = event.target.files[0];
-      if (file) {
-        await processImageAndAutoSearch(file);
-      }
+      if (file) await processImageAndAutoSearch(file);
     }
- 
+
     async function processImageAndAutoSearch(file) {
       if (isOcrRunning) return;
- 
+
       clearOutputs();
       resetCandidatesUI();
       showStatus('טוען תמונה...', 'processing');
- 
+
       const reader = new FileReader();
       reader.onload = async (e) => {
         const img = document.getElementById('previewImage');
         img.src = e.target.result;
- 
+
         document.getElementById('imagePreview').style.display = 'block';
         document.getElementById('uploadArea').style.display = 'none';
- 
+
         await new Promise(resolve => { img.onload = resolve; });
- 
-        await runOcrAndSearch(img);
+
+        await runMultiPassOcrAndSearch(img);
       };
       reader.readAsDataURL(file);
     }
- 
-    function extractCandidatesFromText(text) {
-      // לוקח את כל הספרות מהטקסט, ואז מחלץ רצפים של 7-8 ספרות
-      const digitsOnly = String(text || '').replace(/\D/g, '');
-      const matches = digitsOnly.match(/\d{7,8}/g) || [];
- 
-      // unique + שמירה על סדר
+
+    // --- OCR helpers ---
+    function uniqueKeepOrder(arr) {
       const seen = new Set();
-      const unique = [];
-      for (const m of matches) {
-        if (!seen.has(m)) {
-          seen.add(m);
-          unique.push(m);
+      const out = [];
+      for (const x of arr) {
+        if (!seen.has(x)) {
+          seen.add(x);
+          out.push(x);
         }
       }
- 
-      // עד 5 מועמדים
-      return unique.slice(0, 5);
+      return out;
     }
- 
-    async function runOcrAndSearch(imgElement) {
+
+    function extractCandidatesFromText(text) {
+      const digitsOnly = String(text || '').replace(/\D/g, '');
+      const matches = digitsOnly.match(/\d{7,8}/g) || [];
+      return uniqueKeepOrder(matches).slice(0, 8);
+    }
+
+    function buildEnhancedCanvas(img, mode) {
+      // mode: 'full' | 'smartCrop'
+      const canvas = document.getElementById('workCanvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      // upscale (משפר מאוד)
+      const scale = 2.5;
+      const srcW = img.naturalWidth || img.width;
+      const srcH = img.naturalHeight || img.height;
+
+      // חיתוך חכם: מרכז תחתון (איפה שלרוב לוחית קדמית)
+      let sx = 0, sy = 0, sw = srcW, sh = srcH;
+      if (mode === 'smartCrop') {
+        sw = Math.floor(srcW * 0.55);
+        sh = Math.floor(srcH * 0.30);
+        sx = Math.floor((srcW - sw) / 2);
+        sy = Math.floor(srcH * 0.55);
+      }
+
+      canvas.width = Math.max(1, Math.floor(sw * scale));
+      canvas.height = Math.max(1, Math.floor(sh * scale));
+
+      // ציור החלק הנבחר מוגדל
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+      // שיפור תמונה: grayscale + קונטרסט + threshold
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const d = imageData.data;
+
+      // קונטרסט/בהירות בסיסיים
+      const contrast = 1.35; // 1.0 = ללא שינוי
+      const brightness = 10; // 0 = ללא שינוי
+
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+
+        // grayscale
+        let gray = (0.299 * r + 0.587 * g + 0.114 * b);
+
+        // contrast + brightness
+        gray = (gray - 128) * contrast + 128 + brightness;
+
+        // clamp
+        gray = Math.max(0, Math.min(255, gray));
+
+        d[i] = d[i + 1] = d[i + 2] = gray;
+      }
+
+      // threshold (בינארי)
+      const thresh = 160;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = d[i] >= thresh ? 255 : 0;
+        d[i] = d[i + 1] = d[i + 2] = v;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      return canvas;
+    }
+
+    async function ocrFromSource(sourceEl, psm) {
+      // psm: 6/7/8 - מנסים כמה מצבים לטקסט קצר
+      const res = await Tesseract.recognize(
+        sourceEl,
+        'eng',
+        {
+          tessedit_char_whitelist: '0123456789',
+          preserve_interword_spaces: '1',
+          tessedit_pageseg_mode: String(psm)
+        }
+      );
+      return (res?.data?.text || '');
+    }
+
+    async function runMultiPassOcrAndSearch(imgElement) {
       try {
         isOcrRunning = true;
-        showStatus('מזהה מספר רכב (OCR)...', 'processing');
- 
-        const result = await Tesseract.recognize(
-          imgElement,
-          'eng',
-          {
-            tessedit_char_whitelist: '0123456789',
-            preserve_interword_spaces: '1'
-          }
-        );
- 
-        const rawText = (result?.data?.text || '');
- 
-        const candidates = extractCandidatesFromText(rawText);
- 
+        showStatus('מזהה מספר רכב (OCR משופר)...', 'processing');
+
+        // Pass 1: Original (psm 6)
+        const t1 = await ocrFromSource(imgElement, 6);
+
+        // Pass 2: Enhanced full image (psm 6)
+        const cFull = buildEnhancedCanvas(imgElement, 'full');
+        const t2 = await ocrFromSource(cFull, 6);
+
+        // Pass 3: Enhanced smart crop bottom-center (psm 7)
+        const cCrop = buildEnhancedCanvas(imgElement, 'smartCrop');
+        const t3 = await ocrFromSource(cCrop, 7);
+
+        // Pass 4: Same crop with psm 8 (מילה אחת)
+        const t4 = await ocrFromSource(cCrop, 8);
+
+        let candidates = [];
+        candidates = candidates.concat(extractCandidatesFromText(t1));
+        candidates = candidates.concat(extractCandidatesFromText(t2));
+        candidates = candidates.concat(extractCandidatesFromText(t3));
+        candidates = candidates.concat(extractCandidatesFromText(t4));
+
+        candidates = uniqueKeepOrder(candidates).slice(0, 5);
+
         if (!candidates.length) {
-          showStatus('לא הצלחתי לזהות מספר. נסה תמונה חדה/קרובה יותר או הקלד ידנית.', 'error');
-          isOcrRunning = false;
+          showStatus('לא הצלחתי לזהות מספר. נסה תמונה קרובה יותר או הקלד ידנית.', 'error');
           return;
         }
- 
+
         ocrCandidates = candidates;
         currentCandidateIndex = 0;
- 
+
         document.getElementById('plateInput').value = ocrCandidates[currentCandidateIndex];
- 
+
         renderCandidates();
         setTryNextEnabled();
- 
+
         showStatus(
           `זוהו ${ocrCandidates.length} מועמדים. מנסה: ${formatPlateNumber(ocrCandidates[currentCandidateIndex])}`,
           'success'
         );
- 
+
         await searchVehicle(ocrCandidates[currentCandidateIndex]);
       } catch (err) {
         showStatus(`שגיאת OCR: ${err?.message || 'unknown error'}`, 'error');
@@ -644,21 +724,21 @@
         isOcrRunning = false;
       }
     }
- 
+
     async function tryNextCandidate() {
       if (!ocrCandidates.length) return;
       if (currentCandidateIndex >= ocrCandidates.length - 1) return;
- 
+
       currentCandidateIndex += 1;
       document.getElementById('plateInput').value = ocrCandidates[currentCandidateIndex];
- 
+
       renderCandidates();
       setTryNextEnabled();
- 
+
       showStatus(`מנסה מועמד הבא: ${formatPlateNumber(ocrCandidates[currentCandidateIndex])}`, 'info');
       await searchVehicle(ocrCandidates[currentCandidateIndex]);
     }
- 
+
     function removeImage() {
       document.getElementById('imagePreview').style.display = 'none';
       document.getElementById('uploadArea').style.display = 'block';
@@ -671,7 +751,7 @@
       resetCandidatesUI();
       clearOutputs();
     }
- 
+
     function zoom(action) {
       const img = document.getElementById('previewImage');
       if (action === 'in') {
@@ -683,22 +763,22 @@
       }
       img.style.transform = `scale(${zoomLevel})`;
     }
- 
+
     async function searchVehicle(optionalPlate) {
       const plateNumber = normalizePlate(optionalPlate || document.getElementById('plateInput').value);
- 
+
       clearOutputs();
- 
+
       if (!plateNumber) {
         showError('אנא הזן מספר רישוי');
         return;
       }
- 
+
       if (plateNumber.length < 7 || plateNumber.length > 8) {
         showError('מספר רישוי צריך להכיל 7-8 ספרות');
         return;
       }
- 
+
       document.getElementById('loading').innerHTML = `
         <div class="loading">
           <div class="spinner"></div>
@@ -706,30 +786,26 @@
         </div>
       `;
       document.getElementById('loading').style.display = 'block';
- 
+
       try {
         const response = await fetch(`${SERVER_URL}/api/vehicle/${plateNumber}`);
         const result = await response.json();
- 
+
         document.getElementById('loading').style.display = 'none';
- 
+
         if (result.success && result.data) {
           displayResults(result.data);
           showStatus(`נמצא רכב עבור: ${formatPlateNumber(plateNumber)}`, 'success');
           return;
         }
- 
-        // לא נמצא: מאפשר “מועמד הבא” אם יש
+
         showError(result.message || 'לא נמצאו נתונים עבור מספר רישוי זה');
- 
+
         if (ocrCandidates.length > 1 && currentCandidateIndex < ocrCandidates.length - 1) {
-          showStatus(
-            `לא נמצא עבור ${formatPlateNumber(plateNumber)}. לחץ "נסה מועמד הבא".`,
-            'info'
-          );
+          showStatus(`לא נמצא עבור ${formatPlateNumber(plateNumber)}. לחץ "נסה מועמד הבא".`, 'info');
           setTryNextEnabled();
         } else if (ocrCandidates.length > 1) {
-          showStatus('ניסית את כל המועמדים. נסה תמונה טובה יותר או הקלד ידנית.', 'info');
+          showStatus('ניסית את כל המועמדים. נסה תמונה אחרת או הקלד ידנית.', 'info');
           setTryNextEnabled();
         }
       } catch (error) {
@@ -737,7 +813,7 @@
         showError(`שגיאת חיבור לשרת: ${error.message}<br><br>וודא ש-:<br>1. השרת רץ<br>2. כתובת השרת נכונה למעלה`);
       }
     }
- 
+
     function formatPlateNumber(plate) {
       if (plate.length === 7) {
         return `${plate.substring(0, 2)}-${plate.substring(2, 5)}-${plate.substring(5)}`;
@@ -746,7 +822,7 @@
       }
       return plate;
     }
- 
+
     function displayResults(vehicle) {
       const fields = {
         'mispar_rechev': '🔢 מספר רכב',
@@ -763,9 +839,9 @@
         'nefach_manoa': '📊 נפח מנוע',
         'koach_sus': '💪 כוח סוס'
       };
- 
+
       let html = '<div class="results"><h3>✅ נתונים ממאגר data.gov.il</h3>';
- 
+
       let count = 0;
       for (const [key, label] of Object.entries(fields)) {
         if (vehicle[key] && vehicle[key] !== '' && vehicle[key] !== 'null') {
@@ -778,16 +854,16 @@
           `;
         }
       }
- 
+
       if (count === 0) {
         html += '<p style="text-align: center; color: #666; padding: 20px;">הרכב נמצא אך אין מידע נוסף זמין</p>';
       }
- 
+
       html += '</div>';
       document.getElementById('results').innerHTML = html;
       document.getElementById('results').style.display = 'block';
     }
- 
+
     function showError(message) {
       document.getElementById('error').innerHTML = `
         <div class="error">
@@ -797,11 +873,11 @@
       `;
       document.getElementById('error').style.display = 'block';
     }
- 
+
     document.getElementById('plateInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') searchVehicle();
     });
- 
+
     document.getElementById('plateInput').addEventListener('input', (e) => {
       e.target.value = e.target.value.replace(/\D/g, '');
     });
