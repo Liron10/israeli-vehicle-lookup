@@ -144,6 +144,12 @@
 
     .zoom-btn:hover { background: #0047ab; transform: translateY(-1px); }
 
+    .zoom-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
     .input-group { margin-bottom: 20px; }
 
     .input-group label {
@@ -204,24 +210,6 @@
     }
 
     .btn:active { transform: translateY(0); }
-
-    .btn.secondary {
-      background: #ffffff;
-      color: #0047ab;
-      border: 2px solid #0047ab;
-      box-shadow: none;
-    }
-
-    .btn.secondary:hover { background: #f0f7ff; box-shadow: none; }
-
-    .btn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-      border: none;
-      color: #666;
-    }
 
     .loading {
       text-align: center;
@@ -384,7 +372,6 @@
       to { opacity: 1; }
     }
 
-    /* canvas hidden */
     canvas { display: none; }
   </style>
 </head>
@@ -392,19 +379,18 @@
   <div class="container">
     <div class="header">
       <h1>🚗 חיפוש רכב ישראלי</h1>
-      <p>OCR אוטומטי משופר + חיפוש דרך Backend</p>
+      <p>OCR אוטומטי לפי לוחית צהובה + מועמדים</p>
     </div>
 
     <div class="content">
       <div class="two-column">
-        <!-- Image Column -->
         <div class="column">
           <h3>📸 העלה תמונת לוחית (OCR אוטומטי)</h3>
 
           <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
             <div class="upload-icon">📷</div>
             <h4 style="margin-bottom: 8px;">לחץ או גרור תמונה</h4>
-            <p style="font-size: 14px; color: #666;">OCR ירוץ בכמה שיפורים אוטומטיים. אם לא נמצא, נסה “מועמד הבא”.</p>
+            <p style="font-size: 14px; color: #666;">מנסה לאתר את האזור הצהוב של הלוחית ולזהות מספר אוטומטית</p>
             <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
           </div>
 
@@ -430,10 +416,8 @@
           <div id="statusMessage"></div>
         </div>
 
-        <!-- Input Column -->
         <div class="column">
           <h3>⌨️ או הזן מספר ידנית</h3>
-
           <div class="format-hint">💡 הזן רק מספרים (7-8 ספרות)</div>
 
           <div class="input-group">
@@ -448,9 +432,7 @@
             >
           </div>
 
-          <button class="btn" onclick="searchVehicle()">
-            🔍 חפש במאגר
-          </button>
+          <button class="btn" onclick="searchVehicle()">🔍 חפש במאגר</button>
         </div>
       </div>
 
@@ -458,7 +440,8 @@
       <div id="error" style="display: none;"></div>
       <div id="results" style="display: none;"></div>
 
-      <canvas id="workCanvas"></canvas>
+      <canvas id="scanCanvas"></canvas>
+      <canvas id="ocrCanvas"></canvas>
     </div>
   </div>
 
@@ -466,7 +449,6 @@
     let zoomLevel = 1;
     let isOcrRunning = false;
 
-    // candidates
     let ocrCandidates = [];
     let currentCandidateIndex = -1;
 
@@ -478,8 +460,7 @@
     }
 
     function showStatus(message, type) {
-      const statusDiv = document.getElementById('statusMessage');
-      statusDiv.innerHTML = `<div class="status-message ${type}">${message}</div>`;
+      document.getElementById('statusMessage').innerHTML = `<div class="status-message ${type}">${message}</div>`;
     }
 
     function clearOutputs() {
@@ -494,6 +475,24 @@
       document.getElementById('btnTryNext').disabled = true;
       document.getElementById('candidateBox').style.display = 'none';
       document.getElementById('candidateList').innerHTML = '';
+    }
+
+    function uniqueKeepOrder(arr) {
+      const seen = new Set();
+      const out = [];
+      for (const x of arr) {
+        if (!seen.has(x)) {
+          seen.add(x);
+          out.push(x);
+        }
+      }
+      return out;
+    }
+
+    function extractCandidatesFromText(text) {
+      const digitsOnly = String(text || '').replace(/\D/g, '');
+      const matches = digitsOnly.match(/\d{7,8}/g) || [];
+      return uniqueKeepOrder(matches).slice(0, 10);
     }
 
     function renderCandidates() {
@@ -511,8 +510,8 @@
 
       ocrCandidates.forEach((c, idx) => {
         const btn = document.createElement('button');
-        btn.className = 'candidate-chip' + (idx === currentCandidateIndex ? ' active' : '');
         btn.type = 'button';
+        btn.className = 'candidate-chip' + (idx === currentCandidateIndex ? ' active' : '');
         btn.textContent = formatPlateNumber(c);
         btn.onclick = async () => {
           currentCandidateIndex = idx;
@@ -530,7 +529,6 @@
       btn.disabled = !(ocrCandidates.length > 1 && currentCandidateIndex < ocrCandidates.length - 1);
     }
 
-    // DnD
     const uploadArea = document.getElementById('uploadArea');
 
     uploadArea.addEventListener('dragover', (e) => {
@@ -574,92 +572,165 @@
 
         await new Promise(resolve => { img.onload = resolve; });
 
-        await runMultiPassOcrAndSearch(img);
+        await runYellowPlateOcrAndSearch(img);
       };
       reader.readAsDataURL(file);
     }
 
-    // --- OCR helpers ---
-    function uniqueKeepOrder(arr) {
-      const seen = new Set();
-      const out = [];
-      for (const x of arr) {
-        if (!seen.has(x)) {
-          seen.add(x);
-          out.push(x);
-        }
-      }
-      return out;
+    function zoom(action) {
+      const img = document.getElementById('previewImage');
+      if (action === 'in') zoomLevel = Math.min(zoomLevel + 0.25, 3);
+      if (action === 'out') zoomLevel = Math.max(zoomLevel - 0.25, 0.5);
+      if (action === 'reset') zoomLevel = 1;
+      img.style.transform = `scale(${zoomLevel})`;
     }
 
-    function extractCandidatesFromText(text) {
-      const digitsOnly = String(text || '').replace(/\D/g, '');
-      const matches = digitsOnly.match(/\d{7,8}/g) || [];
-      return uniqueKeepOrder(matches).slice(0, 8);
+    function removeImage() {
+      document.getElementById('imagePreview').style.display = 'none';
+      document.getElementById('uploadArea').style.display = 'block';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('statusMessage').innerHTML = '';
+      document.getElementById('results').style.display = 'none';
+      zoomLevel = 1;
+      document.getElementById('previewImage').style.transform = 'scale(1)';
+      isOcrRunning = false;
+      resetCandidatesUI();
+      clearOutputs();
     }
 
-    function buildEnhancedCanvas(img, mode) {
-      // mode: 'full' | 'smartCrop'
-      const canvas = document.getElementById('workCanvas');
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    function isYellowPixel(r, g, b) {
+      // הגדרה פרקטית ללוחית צהובה בתאורה משתנה
+      return r > 140 && g > 120 && b < 150 && (r + g) > 320;
+    }
 
-      // upscale (משפר מאוד)
-      const scale = 2.5;
+    function detectYellowBoundingBox(img) {
+      const scanCanvas = document.getElementById('scanCanvas');
+      const ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+
       const srcW = img.naturalWidth || img.width;
       const srcH = img.naturalHeight || img.height;
 
-      // חיתוך חכם: מרכז תחתון (איפה שלרוב לוחית קדמית)
+      // סריקה מהירה על תמונה מוקטנת
+      const scanW = 700;
+      const scanH = Math.max(1, Math.floor((srcH / srcW) * scanW));
+      scanCanvas.width = scanW;
+      scanCanvas.height = scanH;
+
+      ctx.drawImage(img, 0, 0, scanW, scanH);
+      const imageData = ctx.getImageData(0, 0, scanW, scanH);
+      const d = imageData.data;
+
+      let minX = scanW, minY = scanH, maxX = -1, maxY = -1;
+      let hits = 0;
+
+      // דוגמים לא כל פיקסל כדי להאיץ
+      const step = 2;
+
+      for (let y = 0; y < scanH; y += step) {
+        for (let x = 0; x < scanW; x += step) {
+          const i = (y * scanW + x) * 4;
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+
+          if (isYellowPixel(r, g, b)) {
+            hits++;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      // אם אין מספיק צהוב, מחזירים null
+      if (hits < 400 || maxX < 0 || maxY < 0) return null;
+
+      // מרחיבים גבולות
+      const padX = Math.floor((maxX - minX) * 0.25);
+      const padY = Math.floor((maxY - minY) * 0.45);
+
+      minX = Math.max(0, minX - padX);
+      minY = Math.max(0, minY - padY);
+      maxX = Math.min(scanW - 1, maxX + padX);
+      maxY = Math.min(scanH - 1, maxY + padY);
+
+      const boxW = Math.max(1, maxX - minX);
+      const boxH = Math.max(1, maxY - minY);
+
+      // ממירים לקואורדינטות מקור
+      const scaleX = srcW / scanW;
+      const scaleY = srcH / scanH;
+
+      return {
+        sx: Math.floor(minX * scaleX),
+        sy: Math.floor(minY * scaleY),
+        sw: Math.floor(boxW * scaleX),
+        sh: Math.floor(boxH * scaleY)
+      };
+    }
+
+    function buildOcrCanvas(img, mode) {
+      // mode: 'yellow' או 'fallback'
+      const canvas = document.getElementById('ocrCanvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      const srcW = img.naturalWidth || img.width;
+      const srcH = img.naturalHeight || img.height;
+
       let sx = 0, sy = 0, sw = srcW, sh = srcH;
-      if (mode === 'smartCrop') {
-        sw = Math.floor(srcW * 0.55);
-        sh = Math.floor(srcH * 0.30);
+
+      if (mode === 'yellow') {
+        const box = detectYellowBoundingBox(img);
+        if (box) {
+          sx = box.sx; sy = box.sy; sw = box.sw; sh = box.sh;
+        } else {
+          mode = 'fallback';
+        }
+      }
+
+      if (mode === 'fallback') {
+        // fallback: מרכז תחתון
+        sw = Math.floor(srcW * 0.60);
+        sh = Math.floor(srcH * 0.35);
         sx = Math.floor((srcW - sw) / 2);
         sy = Math.floor(srcH * 0.55);
       }
 
+      // upscale
+      const scale = 3.0;
       canvas.width = Math.max(1, Math.floor(sw * scale));
       canvas.height = Math.max(1, Math.floor(sh * scale));
 
-      // ציור החלק הנבחר מוגדל
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
-      // שיפור תמונה: grayscale + קונטרסט + threshold
+      // preprocess: grayscale + contrast + threshold
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = imageData.data;
 
-      // קונטרסט/בהירות בסיסיים
-      const contrast = 1.35; // 1.0 = ללא שינוי
-      const brightness = 10; // 0 = ללא שינוי
+      const contrast = 1.45;
+      const brightness = 12;
 
       for (let i = 0; i < d.length; i += 4) {
         const r = d[i], g = d[i + 1], b = d[i + 2];
-
-        // grayscale
         let gray = (0.299 * r + 0.587 * g + 0.114 * b);
 
-        // contrast + brightness
         gray = (gray - 128) * contrast + 128 + brightness;
-
-        // clamp
         gray = Math.max(0, Math.min(255, gray));
 
         d[i] = d[i + 1] = d[i + 2] = gray;
       }
 
-      // threshold (בינארי)
-      const thresh = 160;
+      // threshold
+      const thresh = 165;
       for (let i = 0; i < d.length; i += 4) {
         const v = d[i] >= thresh ? 255 : 0;
         d[i] = d[i + 1] = d[i + 2] = v;
       }
 
       ctx.putImageData(imageData, 0, 0);
-
       return canvas;
     }
 
-    async function ocrFromSource(sourceEl, psm) {
-      // psm: 6/7/8 - מנסים כמה מצבים לטקסט קצר
+    async function ocrFrom(sourceEl, psm) {
       const res = await Tesseract.recognize(
         sourceEl,
         'eng',
@@ -672,32 +743,30 @@
       return (res?.data?.text || '');
     }
 
-    async function runMultiPassOcrAndSearch(imgElement) {
+    async function runYellowPlateOcrAndSearch(imgElement) {
       try {
         isOcrRunning = true;
-        showStatus('מזהה מספר רכב (OCR משופר)...', 'processing');
+        showStatus('מזהה מספר רכב (OCR)...', 'processing');
 
-        // Pass 1: Original (psm 6)
-        const t1 = await ocrFromSource(imgElement, 6);
+        // OCR על מקור
+        const t0 = await ocrFrom(imgElement, 6);
 
-        // Pass 2: Enhanced full image (psm 6)
-        const cFull = buildEnhancedCanvas(imgElement, 'full');
-        const t2 = await ocrFromSource(cFull, 6);
+        // OCR על צהוב
+        const cY = buildOcrCanvas(imgElement, 'yellow');
+        const t1 = await ocrFrom(cY, 7);
+        const t2 = await ocrFrom(cY, 8);
 
-        // Pass 3: Enhanced smart crop bottom-center (psm 7)
-        const cCrop = buildEnhancedCanvas(imgElement, 'smartCrop');
-        const t3 = await ocrFromSource(cCrop, 7);
-
-        // Pass 4: Same crop with psm 8 (מילה אחת)
-        const t4 = await ocrFromSource(cCrop, 8);
+        // OCR על fallback (ליתר ביטחון)
+        const cF = buildOcrCanvas(imgElement, 'fallback');
+        const t3 = await ocrFrom(cF, 7);
 
         let candidates = [];
+        candidates = candidates.concat(extractCandidatesFromText(t0));
         candidates = candidates.concat(extractCandidatesFromText(t1));
         candidates = candidates.concat(extractCandidatesFromText(t2));
         candidates = candidates.concat(extractCandidatesFromText(t3));
-        candidates = candidates.concat(extractCandidatesFromText(t4));
 
-        candidates = uniqueKeepOrder(candidates).slice(0, 5);
+        candidates = uniqueKeepOrder(candidates).slice(0, 6);
 
         if (!candidates.length) {
           showStatus('לא הצלחתי לזהות מספר. נסה תמונה קרובה יותר או הקלד ידנית.', 'error');
@@ -712,11 +781,7 @@
         renderCandidates();
         setTryNextEnabled();
 
-        showStatus(
-          `זוהו ${ocrCandidates.length} מועמדים. מנסה: ${formatPlateNumber(ocrCandidates[currentCandidateIndex])}`,
-          'success'
-        );
-
+        showStatus(`זוהו ${ocrCandidates.length} מועמדים. מנסה: ${formatPlateNumber(ocrCandidates[currentCandidateIndex])}`, 'success');
         await searchVehicle(ocrCandidates[currentCandidateIndex]);
       } catch (err) {
         showStatus(`שגיאת OCR: ${err?.message || 'unknown error'}`, 'error');
@@ -737,31 +802,6 @@
 
       showStatus(`מנסה מועמד הבא: ${formatPlateNumber(ocrCandidates[currentCandidateIndex])}`, 'info');
       await searchVehicle(ocrCandidates[currentCandidateIndex]);
-    }
-
-    function removeImage() {
-      document.getElementById('imagePreview').style.display = 'none';
-      document.getElementById('uploadArea').style.display = 'block';
-      document.getElementById('fileInput').value = '';
-      document.getElementById('statusMessage').innerHTML = '';
-      document.getElementById('results').style.display = 'none';
-      zoomLevel = 1;
-      document.getElementById('previewImage').style.transform = 'scale(1)';
-      isOcrRunning = false;
-      resetCandidatesUI();
-      clearOutputs();
-    }
-
-    function zoom(action) {
-      const img = document.getElementById('previewImage');
-      if (action === 'in') {
-        zoomLevel = Math.min(zoomLevel + 0.25, 3);
-      } else if (action === 'out') {
-        zoomLevel = Math.max(zoomLevel - 0.25, 0.5);
-      } else if (action === 'reset') {
-        zoomLevel = 1;
-      }
-      img.style.transform = `scale(${zoomLevel})`;
     }
 
     async function searchVehicle(optionalPlate) {
@@ -815,11 +855,8 @@
     }
 
     function formatPlateNumber(plate) {
-      if (plate.length === 7) {
-        return `${plate.substring(0, 2)}-${plate.substring(2, 5)}-${plate.substring(5)}`;
-      } else if (plate.length === 8) {
-        return `${plate.substring(0, 3)}-${plate.substring(3, 5)}-${plate.substring(5)}`;
-      }
+      if (plate.length === 7) return `${plate.substring(0, 2)}-${plate.substring(2, 5)}-${plate.substring(5)}`;
+      if (plate.length === 8) return `${plate.substring(0, 3)}-${plate.substring(3, 5)}-${plate.substring(5)}`;
       return plate;
     }
 
@@ -841,8 +878,8 @@
       };
 
       let html = '<div class="results"><h3>✅ נתונים ממאגר data.gov.il</h3>';
-
       let count = 0;
+
       for (const [key, label] of Object.entries(fields)) {
         if (vehicle[key] && vehicle[key] !== '' && vehicle[key] !== 'null') {
           count++;
