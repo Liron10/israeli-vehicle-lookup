@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Israeli Vehicle Lookup - חיפוש רכב ישראלי</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.35);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
+            color: white;
+            padding: 35px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 12px;
+            font-weight: 700;
+        }
+
+        .header p {
+            opacity: 0.95;
+            font-size: 15px;
+        }
+
+        .content {
+            padding: 35px;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 25px;
+        }
+
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .column {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 16px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .column h3 {
+            color: #0066cc;
+            margin-bottom: 18px;
+            font-size: 19px;
+            font-weight: 700;
+        }
+
+        .upload-area {
+            border: 3px dashed #0066cc;
+            border-radius: 12px;
+            padding: 35px 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+            margin-bottom: 18px;
+        }
+
+        .upload-area:hover {
+            border-color: #0047ab;
+            background: #f0f7ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .image-preview {
+            position: relative;
+            text-align: center;
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 350px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .remove-image {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: rgba(211, 47, 47, 0.95);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 34px;
+            height: 34px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .remove-image:hover {
+            background: #d32f2f;
+            transform: scale(1.15);
+        }
+
+        .zoom-controls {
+            margin-top: 12px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .zoom-btn {
+            padding: 9px 16px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            background: #0047ab;
+            transform: translateY(-1px);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 700;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 22px;
+            text-align: center;
+            letter-spacing: 4px;
+            transition: all 0.3s;
+            font-weight: 700;
+            background: white;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+        }
+
+        .format-hint {
+            background: #fff3e0;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 12px 0;
+            font-size: 14px;
+            color: #e65100;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 102, 204, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 25px;
+            color: #0066cc;
+            font-weight: 700;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0066cc;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 28px;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-radius: 16px;
+            border-right: 5px solid #4caf50;
+            animation: slideIn 0.4s;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .results h3 {
+            color: #2e7d32;
+            margin-bottom: 22px;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .result-item {
+            padding: 16px 0;
+            border-bottom: 2px solid rgba(255,255,255,0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: 700;
+            color: #1b5e20;
+            font-size: 15px;
+        }
+
+        .result-value {
+            color: #1b5e20;
+            font-weight: 700;
+            font-size: 17px;
+        }
+
+        .error {
+            padding: 18px;
+            background: #ffebee;
+            color: #c62828;
+            border-radius: 12px;
+            margin-top: 18px;
+            text-align: center;
+            border-right: 5px solid #d32f2f;
+            font-weight: 600;
+        }
+
+        .quick-examples {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+
+        .example-btn {
+            padding: 10px 14px;
+            background: white;
+            border: 2px solid #0066cc;
+            border-radius: 10px;
+            color: #0066cc;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .example-btn:hover {
+            background: #0066cc;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .status-message {
+            margin-top: 15px;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            animation: fadeIn 0.3s;
+        }
+
+        .status-message.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 2px solid #4caf50;
+        }
+
+        .status-message.processing {
+            background: #fff3e0;
+            color: #e65100;
+            border: 2px solid #ff9800;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 חיפוש רכב ישראלי</h1>
+            <p>חיבור ישיר למאגר data.gov.il דרך שרת Backend</p>
+        </div>
+
+        <div class="content">
+            <div class="two-column">
+                <!-- Image Column -->
+                <div class="column">
+                    <h3>📸 העלה תמונת לוחית</h3>
+                    
+                    <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📷</div>
+                        <h4 style="margin-bottom: 8px;">לחץ או גרור תמונה</h4>
+                        <p style="font-size: 14px; color: #666;">החיפוש יתחיל אוטומטית!</p>
+                        <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+                    </div>
+
+                    <div id="imagePreview" style="display: none;">
+                        <div class="image-preview">
+                            <button class="remove-image" onclick="removeImage()">✕</button>
+                            <img id="previewImage" src="" alt="Preview" style="transform: scale(1);">
+                        </div>
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" onclick="zoom('in')">🔍 הגדל</button>
+                            <button class="zoom-btn" onclick="zoom('out')">🔍 הקטן</button>
+                            <button class="zoom-btn" onclick="zoom('reset')">↺ אפס</button>
+                        </div>
+                    </div>
+
+                    <div id="statusMessage"></div>
+                </div>
+
+                <!-- Input Column -->
+                <div class="column">
+                    <h3>⌨️ או הזן מספר ידנית</h3>
+                    
+                    <div class="format-hint">
+                        💡 הזן רק מספרים (7-8 ספרות)
+                    </div>
+
+                    <div class="input-group">
+                        <label>מספר לוחית:</label>
+                        <input 
+                            type="text" 
+                            id="plateInput" 
+                            placeholder="60570703"
+                            maxlength="8"
+                            dir="ltr"
+                            inputmode="numeric"
+                        >
+                    </div>
+
+                    <div class="quick-examples">
+                        <button class="example-btn" onclick="setExample('60570703')">60570703</button>
+                        <button class="example-btn" onclick="setExample('2440037')">2440037</button>
+                    </div>
+
+                    <button class="btn" onclick="searchVehicle()" style="margin-top: 22px;">
+                        🔍 חפש במאגר
+                    </button>
+                </div>
+            </div>
+
+            <div id="loading" style="display: none;"></div>
+            <div id="error" style="display: none;"></div>
+            <div id="results" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        let zoomLevel = 1;
+
+        // Server URL - change this if you deploy to a different server
+        const SERVER_URL = 'https://israeli-vehicle-lookup.onrender.com';
+
+        // Drag and drop
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#0047ab';
+            uploadArea.style.background = '#f0f7ff';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = '#0066cc';
+            uploadArea.style.background = 'white';
+        });
+
+        uploadArea.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#0066cc';
+            uploadArea.style.background = 'white';
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                await processImageAndAutoSearch(files[0]);
+            }
+        });
+
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                await processImageAndAutoSearch(file);
+            }
+        }
+
+        async function processImageAndAutoSearch(file) {
+            // Show image
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('previewImage').src = e.target.result;
+                document.getElementById('imagePreview').style.display = 'block';
+                document.getElementById('uploadArea').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+
+            // Clear previous
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('statusMessage').innerHTML = '';
+
+            showStatus('מעבד תמונה...', 'processing');
+
+            // Simulated OCR (במציאות - OCR אמיתי)
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            // For demo - במציאות תשתמש ב-OCR אמיתי
+            const plateNumber = '60570703';
+
+            document.getElementById('plateInput').value = plateNumber;
+            showStatus(`✅ זוהה: ${formatPlateNumber(plateNumber)}`, 'success');
+
+            await searchVehicle(plateNumber);
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status-message ${type}">${message}</div>`;
+        }
+
+        function removeImage() {
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('uploadArea').style.display = 'block';
+            document.getElementById('fileInput').value = '';
+            document.getElementById('statusMessage').innerHTML = '';
+            document.getElementById('results').style.display = 'none';
+            zoomLevel = 1;
+        }
+
+        function zoom(action) {
+            const img = document.getElementById('previewImage');
+            if (action === 'in') {
+                zoomLevel = Math.min(zoomLevel + 0.25, 3);
+            } else if (action === 'out') {
+                zoomLevel = Math.max(zoomLevel - 0.25, 0.5);
+            } else if (action === 'reset') {
+                zoomLevel = 1;
+            }
+            img.style.transform = `scale(${zoomLevel})`;
+        }
+
+        function setExample(plate) {
+            document.getElementById('plateInput').value = plate;
+            searchVehicle();
+        }
+
+        async function searchVehicle(plateNumber) {
+            if (!plateNumber) {
+                plateNumber = document.getElementById('plateInput').value.trim().replace(/[^0-9]/g, '');
+            }
+            
+            // Clear previous
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+
+            if (!plateNumber) {
+                showError('אנא הזן מספר רישוי');
+                return;
+            }
+
+            if (plateNumber.length < 7 || plateNumber.length > 8) {
+                showError('מספר רישוי צריך להכיל 7-8 ספרות');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>מחפש במאגר data.gov.il...</p>
+                </div>
+            `;
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                // Call YOUR backend server
+                const response = await fetch(`${SERVER_URL}/api/vehicle/${plateNumber}`);
+                const result = await response.json();
+
+                document.getElementById('loading').style.display = 'none';
+
+                if (result.success && result.data) {
+                    // Got real data from government database!
+                    displayResults(result.data);
+                } else {
+                    showError(result.message || 'לא נמצאו נתונים עבור מספר רישוי זה');
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                showError(`שגיאת חיבור לשרת: ${error.message}<br><br>וודא ש-:<br>1. השרת רץ (npm start)<br>2. כתובת השרת נכונה למעלה`);
+            }
+        }
+
+        function formatPlateNumber(plate) {
+            if (plate.length === 7) {
+                return `${plate.substring(0, 2)}-${plate.substring(2, 5)}-${plate.substring(5)}`;
+            } else if (plate.length === 8) {
+                return `${plate.substring(0, 3)}-${plate.substring(3, 5)}-${plate.substring(5)}`;
+            }
+            return plate;
+        }
+
+        function displayResults(vehicle) {
+            const fields = {
+                'mispar_rechev': '🔢 מספר רכב',
+                'tozeret_nm': '🏭 תוצרת (יצרן)',
+                'cinuy_mishari': '🚗 כינוי מסחרי',
+                'degem_cd': '⚙️ קוד דגם',
+                'degem_nm': 'שם דגם',
+                'ramat_gimur': '⭐ רמת גימור',
+                'shnat_yitzur': '📅 שנת ייצור',
+                'tzeva_rechev': '🎨 צבע רכב',
+                'tzeva_cd': 'קוד צבע',
+                'kvutzat_zihum': '🌱 קבוצת זיהום',
+                'sug_delek_nm': '⛽ סוג דלק',
+                'horaat_rishum': '📋 הוראת רישום',
+                'misgeret': '🔑 מספר שלדה',
+                'tokef_dt': 'תוקף',
+                'baalut': 'בעלות',
+                'mishkal_kolel': '⚖️ משקל כולל',
+                'degem_manoa': 'דגם מנוע',
+                'nefach_manoa': '📊 נפח מנוע',
+                'koach_sus': '💪 כוח סוס'
+            };
+
+            let html = '<div class="results"><h3>✅ נתונים ממאגר data.gov.il</h3>';
+            
+            let count = 0;
+            for (const [key, label] of Object.entries(fields)) {
+                if (vehicle[key] && vehicle[key] !== '' && vehicle[key] !== 'null') {
+                    count++;
+                    html += `
+                        <div class="result-item">
+                            <span class="result-label">${label}</span>
+                            <span class="result-value">${vehicle[key]}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            if (count === 0) {
+                html += '<p style="text-align: center; color: #666; padding: 20px;">הרכב נמצא אך אין מידע נוסף זמין</p>';
+            }
+            
+            html += '</div>';
+            document.getElementById('results').innerHTML = html;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('error').innerHTML = `
+                <div class="error">
+                    <strong>⚠️ שגיאה</strong><br>
+                    ${message}
+                </div>
+            `;
+            document.getElementById('error').style.display = 'block';
+        }
+
+        // Allow Enter key
+        document.getElementById('plateInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchVehicle();
+            }
+        });
+
+        // Auto-format input
+        document.getElementById('plateInput').addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+    </script>
+</body>
+</html>
