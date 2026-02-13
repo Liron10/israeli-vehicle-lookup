@@ -1,923 +1,655 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="he">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Israeli Vehicle Lookup - חיפוש רכב ישראלי</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vehicle Lookup (Plate Detection + OCR)</title>
 
-  <!-- OCR -->
+  <!-- ONNX Runtime Web -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.18.0/dist/ort.min.js"></script>
+  <!-- Tesseract OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
-      min-height: 100vh;
-      padding: 20px;
-      direction: rtl;
-    }
-
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      background: white;
-      border-radius: 24px;
-      box-shadow: 0 25px 70px rgba(0,0,0,0.35);
-      overflow: hidden;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
-      color: white;
-      padding: 35px;
-      text-align: center;
-    }
-
-    .header h1 { font-size: 32px; margin-bottom: 12px; font-weight: 700; }
-    .header p { opacity: 0.95; font-size: 15px; }
-
-    .content { padding: 35px; }
-
-    .two-column {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 30px;
-      margin-top: 25px;
-    }
-
-    @media (max-width: 768px) {
-      .two-column { grid-template-columns: 1fr; }
-    }
-
-    .column {
-      background: #f8f9fa;
-      padding: 25px;
-      border-radius: 16px;
-      border: 2px solid #e0e0e0;
-    }
-
-    .column h3 {
-      color: #0066cc;
-      margin-bottom: 18px;
-      font-size: 19px;
-      font-weight: 700;
-    }
-
-    .upload-area {
-      border: 3px dashed #0066cc;
-      border-radius: 12px;
-      padding: 35px 25px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s;
-      background: white;
-      margin-bottom: 18px;
-    }
-
-    .upload-area:hover {
-      border-color: #0047ab;
-      background: #f0f7ff;
-      transform: translateY(-2px);
-    }
-
-    .upload-icon { font-size: 48px; margin-bottom: 12px; }
-    input[type="file"] { display: none; }
-
-    .image-preview {
-      position: relative;
-      text-align: center;
-      background: white;
-      border-radius: 12px;
-      padding: 18px;
-      border: 2px solid #e0e0e0;
-    }
-
-    .image-preview img {
-      max-width: 100%;
-      max-height: 350px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      transform: scale(1);
-    }
-
-    .remove-image {
-      position: absolute;
-      top: 24px;
-      left: 24px;
-      background: rgba(211, 47, 47, 0.95);
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 34px;
-      height: 34px;
-      cursor: pointer;
-      font-size: 18px;
-      font-weight: bold;
-      transition: all 0.2s;
-      z-index: 10;
-    }
-
-    .remove-image:hover { background: #d32f2f; transform: scale(1.15); }
-
-    .zoom-controls {
-      margin-top: 12px;
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .zoom-btn {
-      padding: 9px 16px;
-      background: #0066cc;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 700;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-
-    .zoom-btn:hover { background: #0047ab; transform: translateY(-1px); }
-
-    .zoom-btn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .input-group { margin-bottom: 20px; }
-
-    .input-group label {
-      display: block;
-      margin-bottom: 12px;
-      font-weight: 700;
-      color: #333;
-      font-size: 16px;
-    }
-
-    .input-group input {
-      width: 100%;
-      padding: 16px;
-      border: 2px solid #e0e0e0;
-      border-radius: 12px;
-      font-size: 22px;
-      text-align: center;
-      letter-spacing: 4px;
-      transition: all 0.3s;
-      font-weight: 700;
-      background: white;
-      direction: ltr;
-    }
-
-    .input-group input:focus {
-      outline: none;
-      border-color: #0066cc;
-      box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
-    }
-
-    .format-hint {
-      background: #fff3e0;
-      padding: 12px;
-      border-radius: 10px;
-      margin: 12px 0;
-      font-size: 14px;
-      color: #e65100;
-      text-align: center;
-      font-weight: 700;
-    }
-
-    .btn {
-      width: 100%;
-      padding: 18px;
-      background: linear-gradient(135deg, #0066cc 0%, #0047ab 100%);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 18px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 102, 204, 0.4);
-    }
-
-    .btn:active { transform: translateY(0); }
-
-    .loading {
-      text-align: center;
-      padding: 25px;
-      color: #0066cc;
-      font-weight: 700;
-    }
-
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #0066cc;
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .results {
-      margin-top: 30px;
-      padding: 28px;
-      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-      border-radius: 16px;
-      border-right: 5px solid #4caf50;
-      animation: slideIn 0.4s;
-    }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .results h3 {
-      color: #2e7d32;
-      margin-bottom: 22px;
-      font-size: 22px;
-      font-weight: 700;
-    }
-
-    .result-item {
-      padding: 16px 0;
-      border-bottom: 2px solid rgba(255,255,255,0.5);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .result-item:last-child { border-bottom: none; }
-
-    .result-label {
-      font-weight: 700;
-      color: #1b5e20;
-      font-size: 15px;
-      white-space: nowrap;
-    }
-
-    .result-value {
-      color: #1b5e20;
-      font-weight: 700;
-      font-size: 17px;
-      text-align: left;
-      direction: ltr;
-      overflow-wrap: anywhere;
-    }
-
-    .error {
-      padding: 18px;
-      background: #ffebee;
-      color: #c62828;
-      border-radius: 12px;
-      margin-top: 18px;
-      text-align: center;
-      border-right: 5px solid #d32f2f;
-      font-weight: 700;
-      line-height: 1.4;
-    }
-
-    .status-message {
-      margin-top: 15px;
-      padding: 14px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 700;
-      text-align: center;
-      animation: fadeIn 0.3s;
-      line-height: 1.4;
-    }
-
-    .status-message.processing {
-      background: #fff3e0;
-      color: #e65100;
-      border: 2px solid #ff9800;
-    }
-
-    .status-message.success {
-      background: #e8f5e9;
-      color: #2e7d32;
-      border: 2px solid #4caf50;
-    }
-
-    .status-message.info {
-      background: #e3f2fd;
-      color: #0d47a1;
-      border: 2px solid #2196f3;
-    }
-
-    .status-message.error {
-      background: #ffebee;
-      color: #c62828;
-      border: 2px solid #d32f2f;
-    }
-
-    .candidate-box {
-      margin-top: 14px;
-      padding: 14px;
-      border-radius: 12px;
-      background: #f0f7ff;
-      border: 2px solid #bbdefb;
-      display: none;
-    }
-
-    .candidate-title {
-      font-weight: 800;
-      margin-bottom: 8px;
-      color: #0d47a1;
-      font-size: 14px;
-    }
-
-    .candidate-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-    }
-
-    .candidate-chip {
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: white;
-      border: 2px solid #0d47a1;
-      color: #0d47a1;
-      font-weight: 800;
-      cursor: pointer;
-      direction: ltr;
-    }
-
-    .candidate-chip.active {
-      background: #0d47a1;
-      color: white;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    canvas { display: none; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;direction:rtl;margin:0;background:#f2f5fb}
+    .wrap{max-width:980px;margin:24px auto;padding:16px}
+    .card{background:#fff;border:1px solid #e6e9f2;border-radius:16px;box-shadow:0 10px 30px rgba(16,24,40,.08);overflow:hidden}
+    .head{padding:18px 20px;background:#0b57d0;color:#fff}
+    .head h1{margin:0;font-size:18px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px}
+    @media(max-width:860px){.grid{grid-template-columns:1fr}}
+    .box{border:1px solid #e6e9f2;border-radius:14px;padding:14px;background:#fafbff}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .btn{border:0;border-radius:10px;padding:10px 12px;background:#0b57d0;color:#fff;font-weight:700;cursor:pointer}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.secondary{background:#fff;color:#0b57d0;border:1px solid #0b57d0}
+    .hint{font-size:12px;color:#4a5568;line-height:1.4;margin-top:8px}
+    .status{margin-top:10px;padding:10px 12px;border-radius:10px;font-weight:700;font-size:13px;line-height:1.4;display:none}
+    .status.ok{background:#e8f5e9;color:#1b5e20;border:1px solid #66bb6a}
+    .status.warn{background:#fff3e0;color:#8a4b00;border:1px solid #ffb74d}
+    .status.bad{background:#ffebee;color:#b71c1c;border:1px solid #ef5350}
+    .imgwrap{margin-top:12px;background:#fff;border:1px solid #e6e9f2;border-radius:12px;padding:10px;display:none}
+    img{max-width:100%;border-radius:10px}
+    .field{margin-top:10px}
+    input{width:100%;padding:12px;border:1px solid #d7dcec;border-radius:10px;font-size:18px;font-weight:800;letter-spacing:2px;direction:ltr;text-align:center}
+    .chips{display:none;margin-top:10px;gap:8px;flex-wrap:wrap}
+    .chip{padding:8px 10px;border-radius:999px;border:1px solid #0b57d0;background:#fff;color:#0b57d0;font-weight:900;cursor:pointer;direction:ltr}
+    .chip.active{background:#0b57d0;color:#fff}
+    .out{padding:0 16px 16px}
+    .res{display:none;margin-top:12px;border:1px solid #c8e6c9;background:#e8f5e9;border-radius:14px;padding:12px}
+    .res h3{margin:0 0 10px;font-size:16px;color:#1b5e20}
+    .kv{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(27,94,32,.15)}
+    .kv:last-child{border-bottom:0}
+    .k{font-weight:800;color:#1b5e20}
+    .v{font-weight:800;color:#1b5e20;direction:ltr;text-align:left;overflow-wrap:anywhere}
+    canvas{display:none}
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🚗 חיפוש רכב ישראלי</h1>
-      <p>OCR אוטומטי לפי לוחית צהובה + מועמדים</p>
-    </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <h1>חיפוש רכב – זיהוי לוחית (ONNX) + OCR אוטומטי</h1>
+      </div>
 
-    <div class="content">
-      <div class="two-column">
-        <div class="column">
-          <h3>📸 העלה תמונת לוחית (OCR אוטומטי)</h3>
-
-          <div id="uploadArea" class="upload-area" onclick="document.getElementById('fileInput').click()">
-            <div class="upload-icon">📷</div>
-            <h4 style="margin-bottom: 8px;">לחץ או גרור תמונה</h4>
-            <p style="font-size: 14px; color: #666;">מנסה לאתר את האזור הצהוב של הלוחית ולזהות מספר אוטומטית</p>
-            <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+      <div class="grid">
+        <div class="box">
+          <div class="row">
+            <button class="btn" id="btnPick">העלה תמונה</button>
+            <button class="btn secondary" id="btnRemove" disabled>נקה</button>
+            <button class="btn secondary" id="btnTryNext" disabled>נסה מועמד הבא</button>
+            <input id="file" type="file" accept="image/*" hidden />
           </div>
 
-          <div id="imagePreview" style="display: none;">
-            <div class="image-preview">
-              <button class="remove-image" onclick="removeImage()">✕</button>
-              <img id="previewImage" src="" alt="Preview">
-            </div>
-
-            <div class="zoom-controls">
-              <button class="zoom-btn" onclick="zoom('in')">🔍 הגדל</button>
-              <button class="zoom-btn" onclick="zoom('out')">🔍 הקטן</button>
-              <button class="zoom-btn" onclick="zoom('reset')">↺ אפס</button>
-              <button class="zoom-btn" id="btnTryNext" onclick="tryNextCandidate()" disabled>➡️ נסה מועמד הבא</button>
-            </div>
-
-            <div id="candidateBox" class="candidate-box">
-              <div class="candidate-title">מועמדים שזוהו (לחץ לבחור):</div>
-              <div id="candidateList" class="candidate-list"></div>
-            </div>
+          <div class="hint">
+            עובד כך: מאתר לוחית במודל → חותך לוחית → OCR על החיתוך → מנסה מועמדים מול המאגר.
+            <br>שים ליד הקובץ הזה מודל: <b>lp-detector.onnx</b>
           </div>
 
-          <div id="statusMessage"></div>
+          <div id="status" class="status"></div>
+
+          <div id="imgwrap" class="imgwrap">
+            <img id="img" alt="preview" />
+          </div>
+
+          <div id="chips" class="chips"></div>
         </div>
 
-        <div class="column">
-          <h3>⌨️ או הזן מספר ידנית</h3>
-          <div class="format-hint">💡 הזן רק מספרים (7-8 ספרות)</div>
-
-          <div class="input-group">
-            <label>מספר לוחית:</label>
-            <input
-              type="text"
-              id="plateInput"
-              placeholder="3358931"
-              maxlength="8"
-              dir="ltr"
-              inputmode="numeric"
-            >
+        <div class="box">
+          <div class="hint"><b>ידני:</b> רק ספרות (7–8)</div>
+          <div class="field">
+            <input id="plate" placeholder="3358931" maxlength="8" inputmode="numeric" />
           </div>
-
-          <button class="btn" onclick="searchVehicle()">🔍 חפש במאגר</button>
+          <div class="row" style="margin-top:10px">
+            <button class="btn" id="btnSearch">חפש במאגר</button>
+          </div>
+          <div class="hint">אם OCR פספס – הזן ידנית והמשך.</div>
         </div>
       </div>
 
-      <div id="loading" style="display: none;"></div>
-      <div id="error" style="display: none;"></div>
-      <div id="results" style="display: none;"></div>
+      <div class="out">
+        <div id="result" class="res"></div>
+      </div>
 
-      <canvas id="scanCanvas"></canvas>
-      <canvas id="ocrCanvas"></canvas>
+      <canvas id="work"></canvas>
+      <canvas id="crop"></canvas>
     </div>
   </div>
 
   <script>
-    let zoomLevel = 1;
-    let isOcrRunning = false;
-
-    let ocrCandidates = [];
-    let currentCandidateIndex = -1;
-
+    // ====== SETTINGS ======
     const SERVER_URL = 'https://israeli-vehicle-lookup.onrender.com';
+    const MODEL_URL = './lp-detector.onnx'; // שים את המודל ליד index.html
 
-    function normalizePlate(input) {
-      if (input === undefined || input === null) return '';
-      return String(input).replace(/\D/g, '');
+    // YOLO thresholds
+    const CONF_TH = 0.25;
+    const IOU_TH  = 0.45;
+    const PAD     = 0.25;  // padding סביב הלוחית לחיתוך OCR
+    const OCR_TRIES = 2;   // כמה וריאציות OCR על הקרופ
+
+    // ====== UI ======
+    const elFile   = document.getElementById('file');
+    const elPick   = document.getElementById('btnPick');
+    const elRemove = document.getElementById('btnRemove');
+    const elTryNext= document.getElementById('btnTryNext');
+    const elImg    = document.getElementById('img');
+    const elImgWrap= document.getElementById('imgwrap');
+    const elPlate  = document.getElementById('plate');
+    const elSearch = document.getElementById('btnSearch');
+    const elStatus = document.getElementById('status');
+    const elChips  = document.getElementById('chips');
+    const elResult = document.getElementById('result');
+    const work     = document.getElementById('work');
+    const cropC    = document.getElementById('crop');
+
+    function setStatus(type, msg) {
+      elStatus.className = `status ${type}`;
+      elStatus.textContent = msg;
+      elStatus.style.display = 'block';
+    }
+    function clearStatus(){ elStatus.style.display='none'; elStatus.textContent=''; }
+    function normalizePlate(s){ return String(s||'').replace(/\D/g,''); }
+    function formatPlate(p){
+      p = normalizePlate(p);
+      if (p.length===7) return `${p.slice(0,2)}-${p.slice(2,5)}-${p.slice(5)}`;
+      if (p.length===8) return `${p.slice(0,3)}-${p.slice(3,5)}-${p.slice(5)}`;
+      return p;
     }
 
-    function showStatus(message, type) {
-      document.getElementById('statusMessage').innerHTML = `<div class="status-message ${type}">${message}</div>`;
-    }
+    // ====== Candidates ======
+    let candidates = [];
+    let candIdx = -1;
 
-    function clearOutputs() {
-      document.getElementById('error').style.display = 'none';
-      document.getElementById('results').style.display = 'none';
-      document.getElementById('loading').style.display = 'none';
-    }
-
-    function resetCandidatesUI() {
-      ocrCandidates = [];
-      currentCandidateIndex = -1;
-      document.getElementById('btnTryNext').disabled = true;
-      document.getElementById('candidateBox').style.display = 'none';
-      document.getElementById('candidateList').innerHTML = '';
-    }
-
-    function uniqueKeepOrder(arr) {
-      const seen = new Set();
-      const out = [];
-      for (const x of arr) {
-        if (!seen.has(x)) {
-          seen.add(x);
-          out.push(x);
-        }
-      }
+    function uniqKeep(arr){
+      const seen=new Set(); const out=[];
+      for (const x of arr){ if(!seen.has(x)){ seen.add(x); out.push(x); } }
       return out;
     }
 
-    function extractCandidatesFromText(text) {
-      const digitsOnly = String(text || '').replace(/\D/g, '');
-      const matches = digitsOnly.match(/\d{7,8}/g) || [];
-      return uniqueKeepOrder(matches).slice(0, 10);
-    }
+    function buildCandidateSetFromDigits(digits) {
+      // digits: מחרוזת ספרות בלבד (יכולה להיות ארוכה/קצרה)
+      const out = [];
 
-    function renderCandidates() {
-      const box = document.getElementById('candidateBox');
-      const list = document.getElementById('candidateList');
-
-      if (!ocrCandidates.length) {
-        box.style.display = 'none';
-        list.innerHTML = '';
-        return;
+      // 1) כל רצף 7-8 מתוך digits (חלון זז)
+      for (let len=8; len>=7; len--){
+        for (let i=0; i+len<=digits.length; i++){
+          out.push(digits.slice(i,i+len));
+        }
       }
 
-      box.style.display = 'block';
-      list.innerHTML = '';
+      // 2) אם יצא 8 ספרות - נסה גם כל אפשרות של מחיקת ספרה אחת -> 7
+      for (const x of [...out]) {
+        if (x.length===8) {
+          for (let i=0;i<8;i++) out.push(x.slice(0,i)+x.slice(i+1));
+        }
+      }
 
-      ocrCandidates.forEach((c, idx) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'candidate-chip' + (idx === currentCandidateIndex ? ' active' : '');
-        btn.textContent = formatPlateNumber(c);
-        btn.onclick = async () => {
-          currentCandidateIndex = idx;
-          document.getElementById('plateInput').value = ocrCandidates[currentCandidateIndex];
-          renderCandidates();
-          setTryNextEnabled();
-          await searchVehicle(ocrCandidates[currentCandidateIndex]);
+      // 3) ניקוי ל-7/8 בלבד + ייחוד
+      return uniqKeep(out.filter(x => x.length===7 || x.length===8)).slice(0, 30);
+    }
+
+    function renderChips(){
+      elChips.innerHTML='';
+      if(!candidates.length){ elChips.style.display='none'; return; }
+      elChips.style.display='flex';
+      candidates.slice(0,10).forEach((c,i)=>{
+        const b=document.createElement('button');
+        b.type='button';
+        b.className='chip'+(i===candIdx?' active':'');
+        b.textContent=formatPlate(c);
+        b.onclick=async()=>{
+          candIdx=i;
+          elPlate.value=candidates[candIdx];
+          renderChips();
+          updateTryNext();
+          await searchVehicle(candidates[candIdx]);
         };
-        list.appendChild(btn);
+        elChips.appendChild(b);
       });
     }
-
-    function setTryNextEnabled() {
-      const btn = document.getElementById('btnTryNext');
-      btn.disabled = !(ocrCandidates.length > 1 && currentCandidateIndex < ocrCandidates.length - 1);
+    function updateTryNext(){
+      elTryNext.disabled = !(candidates.length>1 && candIdx < candidates.length-1);
     }
 
-    const uploadArea = document.getElementById('uploadArea');
-
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.style.borderColor = '#0047ab';
-      uploadArea.style.background = '#f0f7ff';
+    elTryNext.addEventListener('click', async ()=>{
+      if (candIdx < candidates.length-1) {
+        candIdx++;
+        elPlate.value = candidates[candIdx];
+        renderChips();
+        updateTryNext();
+        setStatus('warn', `מנסה מועמד הבא: ${formatPlate(candidates[candIdx])}`);
+        await searchVehicle(candidates[candIdx]);
+      }
     });
 
-    uploadArea.addEventListener('dragleave', () => {
-      uploadArea.style.borderColor = '#0066cc';
-      uploadArea.style.background = 'white';
-    });
+    // ====== Model (ONNX) ======
+    let session = null;
+    let modelReady = false;
+    let modelInputW = 640;
+    let modelInputH = 640;
 
-    uploadArea.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      uploadArea.style.borderColor = '#0066cc';
-      uploadArea.style.background = 'white';
-      const files = e.dataTransfer.files;
-      if (files.length > 0) await processImageAndAutoSearch(files[0]);
-    });
+    async function loadModelOnce(){
+      if (modelReady) return true;
+      try{
+        setStatus('warn','טוען מודל זיהוי לוחית...');
+        session = await ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'] });
 
-    async function handleFileSelect(event) {
-      const file = event.target.files[0];
-      if (file) await processImageAndAutoSearch(file);
+        // נסיון לנחש input shape
+        const inName = session.inputNames[0];
+        const inMeta = session.inputMetadata[inName];
+        const dims = inMeta?.dimensions || [];
+        // לרוב: [1,3,640,640] או [1,3,416,416]
+        if (dims.length===4 && typeof dims[2]==='number' && typeof dims[3]==='number') {
+          modelInputH = dims[2];
+          modelInputW = dims[3];
+        } else {
+          modelInputW = 640; modelInputH = 640;
+        }
+
+        modelReady = true;
+        setStatus('ok', `מודל נטען. קלט: ${modelInputW}x${modelInputH}`);
+        return true;
+      } catch (e){
+        console.error(e);
+        setStatus('bad', 'כשל בטעינת מודל. ודא שיש קובץ lp-detector.onnx ליד index.html');
+        return false;
+      }
     }
 
-    async function processImageAndAutoSearch(file) {
-      if (isOcrRunning) return;
-
-      clearOutputs();
-      resetCandidatesUI();
-      showStatus('טוען תמונה...', 'processing');
-
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const img = document.getElementById('previewImage');
-        img.src = e.target.result;
-
-        document.getElementById('imagePreview').style.display = 'block';
-        document.getElementById('uploadArea').style.display = 'none';
-
-        await new Promise(resolve => { img.onload = resolve; });
-
-        await runYellowPlateOcrAndSearch(img);
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function zoom(action) {
-      const img = document.getElementById('previewImage');
-      if (action === 'in') zoomLevel = Math.min(zoomLevel + 0.25, 3);
-      if (action === 'out') zoomLevel = Math.max(zoomLevel - 0.25, 0.5);
-      if (action === 'reset') zoomLevel = 1;
-      img.style.transform = `scale(${zoomLevel})`;
-    }
-
-    function removeImage() {
-      document.getElementById('imagePreview').style.display = 'none';
-      document.getElementById('uploadArea').style.display = 'block';
-      document.getElementById('fileInput').value = '';
-      document.getElementById('statusMessage').innerHTML = '';
-      document.getElementById('results').style.display = 'none';
-      zoomLevel = 1;
-      document.getElementById('previewImage').style.transform = 'scale(1)';
-      isOcrRunning = false;
-      resetCandidatesUI();
-      clearOutputs();
-    }
-
-    function isYellowPixel(r, g, b) {
-      // הגדרה פרקטית ללוחית צהובה בתאורה משתנה
-      return r > 140 && g > 120 && b < 150 && (r + g) > 320;
-    }
-
-    function detectYellowBoundingBox(img) {
-      const scanCanvas = document.getElementById('scanCanvas');
-      const ctx = scanCanvas.getContext('2d', { willReadFrequently: true });
+    function letterboxToCanvas(img, dstW, dstH){
+      const ctx = work.getContext('2d', { willReadFrequently:true });
+      work.width = dstW; work.height = dstH;
+      ctx.clearRect(0,0,dstW,dstH);
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0,0,dstW,dstH);
 
       const srcW = img.naturalWidth || img.width;
       const srcH = img.naturalHeight || img.height;
 
-      // סריקה מהירה על תמונה מוקטנת
-      const scanW = 700;
-      const scanH = Math.max(1, Math.floor((srcH / srcW) * scanW));
-      scanCanvas.width = scanW;
-      scanCanvas.height = scanH;
+      const r = Math.min(dstW/srcW, dstH/srcH);
+      const newW = Math.round(srcW*r);
+      const newH = Math.round(srcH*r);
+      const padX = Math.floor((dstW-newW)/2);
+      const padY = Math.floor((dstH-newH)/2);
 
-      ctx.drawImage(img, 0, 0, scanW, scanH);
-      const imageData = ctx.getImageData(0, 0, scanW, scanH);
-      const d = imageData.data;
+      ctx.drawImage(img, 0,0,srcW,srcH, padX,padY, newW,newH);
 
-      let minX = scanW, minY = scanH, maxX = -1, maxY = -1;
-      let hits = 0;
+      return { r, padX, padY, newW, newH, srcW, srcH };
+    }
 
-      // דוגמים לא כל פיקסל כדי להאיץ
-      const step = 2;
+    function canvasToTensorCHW(canvas){
+      const ctx = canvas.getContext('2d', { willReadFrequently:true });
+      const { width:w, height:h } = canvas;
+      const imgData = ctx.getImageData(0,0,w,h).data;
+      const float = new Float32Array(1*3*w*h);
+      let pR=0, pG=w*h, pB=2*w*h;
+      for (let i=0;i<imgData.length;i+=4){
+        float[pR++] = imgData[i]   / 255;
+        float[pG++] = imgData[i+1] / 255;
+        float[pB++] = imgData[i+2] / 255;
+      }
+      return new ort.Tensor('float32', float, [1,3,h,w]);
+    }
 
-      for (let y = 0; y < scanH; y += step) {
-        for (let x = 0; x < scanW; x += step) {
-          const i = (y * scanW + x) * 4;
-          const r = d[i], g = d[i + 1], b = d[i + 2];
+    function iou(a,b){
+      const x1=Math.max(a.x1,b.x1), y1=Math.max(a.y1,b.y1);
+      const x2=Math.min(a.x2,b.x2), y2=Math.min(a.y2,b.y2);
+      const inter=Math.max(0,x2-x1)*Math.max(0,y2-y1);
+      const areaA=Math.max(0,a.x2-a.x1)*Math.max(0,a.y2-a.y1);
+      const areaB=Math.max(0,b.x2-b.x1)*Math.max(0,b.y2-b.y1);
+      return inter / (areaA+areaB-inter+1e-6);
+    }
 
-          if (isYellowPixel(r, g, b)) {
-            hits++;
-            if (x < minX) minX = x;
-            if (y < minY) minY = y;
-            if (x > maxX) maxX = x;
-            if (y > maxY) maxY = y;
+    function nms(boxes, iouTh){
+      boxes.sort((a,b)=>b.score-a.score);
+      const keep=[];
+      for (const b of boxes){
+        let ok=true;
+        for (const k of keep){
+          if (iou(b,k) > iouTh){ ok=false; break; }
+        }
+        if (ok) keep.push(b);
+      }
+      return keep;
+    }
+
+    function parseYoloOutput(outputTensor){
+      // תומך בשתי צורות נפוצות: [1,N, (4+cls)] או [1,(4+cls),N]
+      const data = outputTensor.data;
+      const dims = outputTensor.dims;
+
+      let N=0, C=0, layout=0;
+      // dims example: [1, 84, 8400] or [1, 8400, 6]
+      if (dims.length===3){
+        const a=dims[1], b=dims[2];
+        if (a < b) { C=a; N=b; layout=0; }      // [1,C,N]
+        else { N=a; C=b; layout=1; }            // [1,N,C]
+      } else {
+        return [];
+      }
+
+      // assume single class detector -> C is 5 or 6 (x,y,w,h,score,(cls))
+      // but could be multi-class. We'll compute best class score.
+      const boxes=[];
+
+      for (let i=0;i<N;i++){
+        let x,y,w,h;
+        let obj=0;
+        let best=0;
+
+        if (layout===0){
+          x = data[0*C*N + 0*N + i];
+          y = data[0*C*N + 1*N + i];
+          w = data[0*C*N + 2*N + i];
+          h = data[0*C*N + 3*N + i];
+
+          if (C===5){
+            obj = data[0*C*N + 4*N + i];
+            best = obj;
+          } else {
+            // YOLOv8 style: 4 + classes
+            for (let c=4;c<C;c++){
+              const s = data[0*C*N + c*N + i];
+              if (s>best) best=s;
+            }
+          }
+        } else {
+          x = data[i*C + 0];
+          y = data[i*C + 1];
+          w = data[i*C + 2];
+          h = data[i*C + 3];
+
+          if (C===5){
+            obj = data[i*C + 4];
+            best = obj;
+          } else {
+            for (let c=4;c<C;c++){
+              const s = data[i*C + c];
+              if (s>best) best=s;
+            }
           }
         }
+
+        const score = best;
+        if (score < CONF_TH) continue;
+
+        // YOLO outputs are usually center-x/center-y/width/height in input space
+        const x1 = x - w/2;
+        const y1 = y - h/2;
+        const x2 = x + w/2;
+        const y2 = y + h/2;
+
+        boxes.push({ x1,y1,x2,y2,score });
       }
 
-      // אם אין מספיק צהוב, מחזירים null
-      if (hits < 400 || maxX < 0 || maxY < 0) return null;
-
-      // מרחיבים גבולות
-      const padX = Math.floor((maxX - minX) * 0.25);
-      const padY = Math.floor((maxY - minY) * 0.45);
-
-      minX = Math.max(0, minX - padX);
-      minY = Math.max(0, minY - padY);
-      maxX = Math.min(scanW - 1, maxX + padX);
-      maxY = Math.min(scanH - 1, maxY + padY);
-
-      const boxW = Math.max(1, maxX - minX);
-      const boxH = Math.max(1, maxY - minY);
-
-      // ממירים לקואורדינטות מקור
-      const scaleX = srcW / scanW;
-      const scaleY = srcH / scanH;
-
-      return {
-        sx: Math.floor(minX * scaleX),
-        sy: Math.floor(minY * scaleY),
-        sw: Math.floor(boxW * scaleX),
-        sh: Math.floor(boxH * scaleY)
-      };
+      return nms(boxes, IOU_TH);
     }
 
-    function buildOcrCanvas(img, mode) {
-      // mode: 'yellow' או 'fallback'
-      const canvas = document.getElementById('ocrCanvas');
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    function mapBoxBackToOriginal(b, lb){
+      // lb: {r,padX,padY,srcW,srcH}
+      let x1 = (b.x1 - lb.padX) / lb.r;
+      let y1 = (b.y1 - lb.padY) / lb.r;
+      let x2 = (b.x2 - lb.padX) / lb.r;
+      let y2 = (b.y2 - lb.padY) / lb.r;
 
+      // clamp
+      x1 = Math.max(0, Math.min(lb.srcW-1, x1));
+      y1 = Math.max(0, Math.min(lb.srcH-1, y1));
+      x2 = Math.max(0, Math.min(lb.srcW-1, x2));
+      y2 = Math.max(0, Math.min(lb.srcH-1, y2));
+
+      return { x1,y1,x2,y2,score:b.score };
+    }
+
+    function cropPlateToCanvas(img, box){
+      const ctx = cropC.getContext('2d', { willReadFrequently:true });
       const srcW = img.naturalWidth || img.width;
       const srcH = img.naturalHeight || img.height;
 
-      let sx = 0, sy = 0, sw = srcW, sh = srcH;
+      let x1=box.x1, y1=box.y1, x2=box.x2, y2=box.y2;
+      const w = x2-x1, h=y2-y1;
 
-      if (mode === 'yellow') {
-        const box = detectYellowBoundingBox(img);
-        if (box) {
-          sx = box.sx; sy = box.sy; sw = box.sw; sh = box.sh;
-        } else {
-          mode = 'fallback';
-        }
-      }
+      // padding
+      x1 = Math.max(0, x1 - w*PAD);
+      y1 = Math.max(0, y1 - h*PAD);
+      x2 = Math.min(srcW, x2 + w*PAD);
+      y2 = Math.min(srcH, y2 + h*PAD);
 
-      if (mode === 'fallback') {
-        // fallback: מרכז תחתון
-        sw = Math.floor(srcW * 0.60);
-        sh = Math.floor(srcH * 0.35);
-        sx = Math.floor((srcW - sw) / 2);
-        sy = Math.floor(srcH * 0.55);
-      }
+      const cw = Math.max(1, Math.floor(x2-x1));
+      const ch = Math.max(1, Math.floor(y2-y1));
 
-      // upscale
+      // upscale crop for OCR
       const scale = 3.0;
-      canvas.width = Math.max(1, Math.floor(sw * scale));
-      canvas.height = Math.max(1, Math.floor(sh * scale));
+      cropC.width = Math.max(1, Math.floor(cw*scale));
+      cropC.height= Math.max(1, Math.floor(ch*scale));
 
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, x1,y1,cw,ch, 0,0,cropC.width,cropC.height);
 
-      // preprocess: grayscale + contrast + threshold
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const d = imageData.data;
+      return cropC;
+    }
 
-      const contrast = 1.45;
-      const brightness = 12;
+    function preprocessForOcr(canvas, variant){
+      // variant 0: grayscale+contrast+threshold
+      // variant 1: softer threshold
+      const ctx = canvas.getContext('2d', { willReadFrequently:true });
+      const { width:w, height:h } = canvas;
+      const imgData = ctx.getImageData(0,0,w,h);
+      const d = imgData.data;
 
-      for (let i = 0; i < d.length; i += 4) {
-        const r = d[i], g = d[i + 1], b = d[i + 2];
-        let gray = (0.299 * r + 0.587 * g + 0.114 * b);
+      const contrast = (variant===0) ? 1.55 : 1.35;
+      const brightness = (variant===0) ? 10 : 6;
+      const thresh = (variant===0) ? 160 : 180;
 
-        gray = (gray - 128) * contrast + 128 + brightness;
+      for (let i=0;i<d.length;i+=4){
+        const r=d[i], g=d[i+1], b=d[i+2];
+        let gray = 0.299*r + 0.587*g + 0.114*b;
+        gray = (gray-128)*contrast + 128 + brightness;
         gray = Math.max(0, Math.min(255, gray));
-
-        d[i] = d[i + 1] = d[i + 2] = gray;
+        const v = gray >= thresh ? 255 : 0;
+        d[i]=d[i+1]=d[i+2]=v;
       }
-
-      // threshold
-      const thresh = 165;
-      for (let i = 0; i < d.length; i += 4) {
-        const v = d[i] >= thresh ? 255 : 0;
-        d[i] = d[i + 1] = d[i + 2] = v;
-      }
-
-      ctx.putImageData(imageData, 0, 0);
+      ctx.putImageData(imgData,0,0);
       return canvas;
     }
 
-    async function ocrFrom(sourceEl, psm) {
-      const res = await Tesseract.recognize(
-        sourceEl,
-        'eng',
-        {
-          tessedit_char_whitelist: '0123456789',
-          preserve_interword_spaces: '1',
-          tessedit_pageseg_mode: String(psm)
-        }
-      );
-      return (res?.data?.text || '');
+    async function ocrDigitsOnly(source){
+      const res = await Tesseract.recognize(source, 'eng', {
+        tessedit_char_whitelist: '0123456789',
+        preserve_interword_spaces: '1',
+        tessedit_pageseg_mode: '7'
+      });
+      return String(res?.data?.text || '');
     }
 
-    async function runYellowPlateOcrAndSearch(imgElement) {
+    // ====== Main pipeline ======
+    async function detectAndOcr(img){
+      const ok = await loadModelOnce();
+      if (!ok) return { candidates: [] };
+
+      setStatus('warn','מאתר לוחית בתמונה...');
+      const lb = letterboxToCanvas(img, modelInputW, modelInputH);
+      const input = canvasToTensorCHW(work);
+
+      const feeds = {};
+      feeds[session.inputNames[0]] = input;
+
+      let outMap;
       try {
-        isOcrRunning = true;
-        showStatus('מזהה מספר רכב (OCR)...', 'processing');
+        outMap = await session.run(feeds);
+      } catch(e){
+        console.error(e);
+        setStatus('bad','הרצת מודל נכשלה. נסה דפדפן אחר או מודל ONNX אחר.');
+        return { candidates: [] };
+      }
 
-        // OCR על מקור
-        const t0 = await ocrFrom(imgElement, 6);
+      const outName = session.outputNames[0];
+      const outTensor = outMap[outName];
 
-        // OCR על צהוב
-        const cY = buildOcrCanvas(imgElement, 'yellow');
-        const t1 = await ocrFrom(cY, 7);
-        const t2 = await ocrFrom(cY, 8);
+      const boxes = parseYoloOutput(outTensor);
+      if (!boxes.length){
+        setStatus('bad','לא זוהתה לוחית. נסה תמונה אחרת או הזן ידנית.');
+        return { candidates: [] };
+      }
 
-        // OCR על fallback (ליתר ביטחון)
-        const cF = buildOcrCanvas(imgElement, 'fallback');
-        const t3 = await ocrFrom(cF, 7);
+      // pick best box
+      const best = mapBoxBackToOriginal(boxes[0], lb);
 
-        let candidates = [];
-        candidates = candidates.concat(extractCandidatesFromText(t0));
-        candidates = candidates.concat(extractCandidatesFromText(t1));
-        candidates = candidates.concat(extractCandidatesFromText(t2));
-        candidates = candidates.concat(extractCandidatesFromText(t3));
+      setStatus('warn','חותך לוחית ומריץ OCR...');
+      const plateCrop = cropPlateToCanvas(img, best);
 
-        candidates = uniqueKeepOrder(candidates).slice(0, 6);
+      // OCR multi-tries with preprocessing variants
+      let allDigits = '';
+      let all = [];
 
-        if (!candidates.length) {
-          showStatus('לא הצלחתי לזהות מספר. נסה תמונה קרובה יותר או הקלד ידנית.', 'error');
-          return;
+      for (let i=0;i<OCR_TRIES;i++){
+        // clone crop to temp canvas
+        const tmp = document.createElement('canvas');
+        tmp.width = plateCrop.width; tmp.height = plateCrop.height;
+        tmp.getContext('2d').drawImage(plateCrop,0,0);
+        preprocessForOcr(tmp, i);
+
+        const text = await ocrDigitsOnly(tmp);
+        const digits = normalizePlate(text);
+        if (digits) {
+          allDigits += digits;
+          all.push(...buildCandidateSetFromDigits(digits));
+        }
+      }
+
+      all = uniqKeep(all);
+
+      return { candidates: all };
+    }
+
+    async function tryCandidatesUntilFound(list){
+      // מנסה אחד-אחד מול השרת עד שמוצא
+      for (let i=0;i<Math.min(list.length, 12); i++){
+        const p = list[i];
+        elPlate.value = p;
+        candIdx = i;
+        renderChips();
+        updateTryNext();
+        setStatus('warn', `בודק במאגר: ${formatPlate(p)} (${i+1}/${Math.min(list.length,12)})`);
+
+        const found = await searchVehicle(p, true);
+        if (found) return true;
+      }
+      return false;
+    }
+
+    // ====== Vehicle lookup ======
+    async function searchVehicle(plateMaybe, silent=false){
+      const plate = normalizePlate(plateMaybe || elPlate.value);
+      if (!plate || plate.length < 7 || plate.length > 8) {
+        if(!silent) setStatus('bad','מספר חייב להיות 7–8 ספרות');
+        return false;
+      }
+
+      elResult.style.display='none';
+      elResult.innerHTML='';
+
+      try{
+        const r = await fetch(`${SERVER_URL}/api/vehicle/${plate}`);
+        const j = await r.json();
+
+        if (j.success && j.data){
+          renderVehicle(j.data);
+          if(!silent) setStatus('ok', `נמצא: ${formatPlate(plate)}`);
+          else setStatus('ok', `נמצא: ${formatPlate(plate)}`);
+          return true;
         }
 
-        ocrCandidates = candidates;
-        currentCandidateIndex = 0;
-
-        document.getElementById('plateInput').value = ocrCandidates[currentCandidateIndex];
-
-        renderCandidates();
-        setTryNextEnabled();
-
-        showStatus(`זוהו ${ocrCandidates.length} מועמדים. מנסה: ${formatPlateNumber(ocrCandidates[currentCandidateIndex])}`, 'success');
-        await searchVehicle(ocrCandidates[currentCandidateIndex]);
-      } catch (err) {
-        showStatus(`שגיאת OCR: ${err?.message || 'unknown error'}`, 'error');
-      } finally {
-        isOcrRunning = false;
+        if(!silent) setStatus('bad', `לא נמצא במאגר: ${formatPlate(plate)}`);
+        return false;
+      } catch(e){
+        console.error(e);
+        if(!silent) setStatus('bad', 'שגיאת חיבור לשרת. בדוק SERVER_URL.');
+        return false;
       }
     }
 
-    async function tryNextCandidate() {
-      if (!ocrCandidates.length) return;
-      if (currentCandidateIndex >= ocrCandidates.length - 1) return;
-
-      currentCandidateIndex += 1;
-      document.getElementById('plateInput').value = ocrCandidates[currentCandidateIndex];
-
-      renderCandidates();
-      setTryNextEnabled();
-
-      showStatus(`מנסה מועמד הבא: ${formatPlateNumber(ocrCandidates[currentCandidateIndex])}`, 'info');
-      await searchVehicle(ocrCandidates[currentCandidateIndex]);
-    }
-
-    async function searchVehicle(optionalPlate) {
-      const plateNumber = normalizePlate(optionalPlate || document.getElementById('plateInput').value);
-
-      clearOutputs();
-
-      if (!plateNumber) {
-        showError('אנא הזן מספר רישוי');
-        return;
-      }
-
-      if (plateNumber.length < 7 || plateNumber.length > 8) {
-        showError('מספר רישוי צריך להכיל 7-8 ספרות');
-        return;
-      }
-
-      document.getElementById('loading').innerHTML = `
-        <div class="loading">
-          <div class="spinner"></div>
-          <p>מחפש במאגר data.gov.il...</p>
-        </div>
-      `;
-      document.getElementById('loading').style.display = 'block';
-
-      try {
-        const response = await fetch(`${SERVER_URL}/api/vehicle/${plateNumber}`);
-        const result = await response.json();
-
-        document.getElementById('loading').style.display = 'none';
-
-        if (result.success && result.data) {
-          displayResults(result.data);
-          showStatus(`נמצא רכב עבור: ${formatPlateNumber(plateNumber)}`, 'success');
-          return;
-        }
-
-        showError(result.message || 'לא נמצאו נתונים עבור מספר רישוי זה');
-
-        if (ocrCandidates.length > 1 && currentCandidateIndex < ocrCandidates.length - 1) {
-          showStatus(`לא נמצא עבור ${formatPlateNumber(plateNumber)}. לחץ "נסה מועמד הבא".`, 'info');
-          setTryNextEnabled();
-        } else if (ocrCandidates.length > 1) {
-          showStatus('ניסית את כל המועמדים. נסה תמונה אחרת או הקלד ידנית.', 'info');
-          setTryNextEnabled();
-        }
-      } catch (error) {
-        document.getElementById('loading').style.display = 'none';
-        showError(`שגיאת חיבור לשרת: ${error.message}<br><br>וודא ש-:<br>1. השרת רץ<br>2. כתובת השרת נכונה למעלה`);
-      }
-    }
-
-    function formatPlateNumber(plate) {
-      if (plate.length === 7) return `${plate.substring(0, 2)}-${plate.substring(2, 5)}-${plate.substring(5)}`;
-      if (plate.length === 8) return `${plate.substring(0, 3)}-${plate.substring(3, 5)}-${plate.substring(5)}`;
-      return plate;
-    }
-
-    function displayResults(vehicle) {
+    function renderVehicle(v){
       const fields = {
-        'mispar_rechev': '🔢 מספר רכב',
-        'tozeret_nm': '🏭 תוצרת (יצרן)',
-        'cinuy_mishari': '🚗 כינוי מסחרי',
-        'degem_nm': 'שם דגם',
-        'ramat_gimur': '⭐ רמת גימור',
-        'shnat_yitzur': '📅 שנת ייצור',
-        'tzeva_rechev': '🎨 צבע רכב',
-        'kvutzat_zihum': '🌱 קבוצת זיהום',
-        'sug_delek_nm': '⛽ סוג דלק',
-        'misgeret': '🔑 מספר שלדה',
-        'mishkal_kolel': '⚖️ משקל כולל',
-        'nefach_manoa': '📊 נפח מנוע',
-        'koach_sus': '💪 כוח סוס'
+        mispar_rechev:'מספר רכב',
+        tozeret_nm:'תוצרת',
+        cinuy_mishari:'כינוי מסחרי',
+        degem_nm:'דגם',
+        ramat_gimur:'רמת גימור',
+        shnat_yitzur:'שנת ייצור',
+        tzeva_rechev:'צבע',
+        sug_delek_nm:'סוג דלק',
+        kvutzat_zihum:'קבוצת זיהום',
+        misgeret:'מספר שלדה'
       };
 
-      let html = '<div class="results"><h3>✅ נתונים ממאגר data.gov.il</h3>';
-      let count = 0;
-
-      for (const [key, label] of Object.entries(fields)) {
-        if (vehicle[key] && vehicle[key] !== '' && vehicle[key] !== 'null') {
+      let html = `<h3>נתונים ממאגר data.gov.il</h3>`;
+      let count=0;
+      for (const [k,label] of Object.entries(fields)){
+        const val = v[k];
+        if (val !== undefined && val !== null && String(val).trim() !== '' && String(val) !== 'null'){
           count++;
-          html += `
-            <div class="result-item">
-              <span class="result-label">${label}</span>
-              <span class="result-value">${vehicle[key]}</span>
-            </div>
-          `;
+          html += `<div class="kv"><div class="k">${label}</div><div class="v">${val}</div></div>`;
         }
       }
+      if(!count) html += `<div class="hint">הרכב נמצא אך אין שדות להצגה</div>`;
 
-      if (count === 0) {
-        html += '<p style="text-align: center; color: #666; padding: 20px;">הרכב נמצא אך אין מידע נוסף זמין</p>';
+      elResult.innerHTML = html;
+      elResult.style.display='block';
+    }
+
+    // ====== Events ======
+    elPick.addEventListener('click', ()=> elFile.click());
+
+    elRemove.addEventListener('click', ()=>{
+      elFile.value='';
+      elImg.src='';
+      elImgWrap.style.display='none';
+      elRemove.disabled=true;
+      candidates=[]; candIdx=-1;
+      renderChips(); updateTryNext();
+      clearStatus();
+      elPlate.value='';
+      elResult.style.display='none';
+      elResult.innerHTML='';
+    });
+
+    elFile.addEventListener('change', async (e)=>{
+      const f = e.target.files?.[0];
+      if (!f) return;
+
+      candidates=[]; candIdx=-1;
+      renderChips(); updateTryNext();
+      elResult.style.display='none';
+      elResult.innerHTML='';
+
+      setStatus('warn','טוען תמונה...');
+      const url = URL.createObjectURL(f);
+      elImg.src = url;
+      elImgWrap.style.display='block';
+      elRemove.disabled=false;
+
+      await new Promise(res=>{ elImg.onload=()=>res(); });
+
+      const { candidates: cand } = await detectAndOcr(elImg);
+
+      if (!cand.length){
+        setStatus('bad','OCR לא הצליח להוציא מועמדים. הזן ידנית או נסה תמונה אחרת.');
+        return;
       }
 
-      html += '</div>';
-      document.getElementById('results').innerHTML = html;
-      document.getElementById('results').style.display = 'block';
-    }
+      // בונה רשימה "מסודרת": קודם 7 ספרות, אחר כך 8
+      candidates = uniqKeep([
+        ...cand.filter(x=>x.length===7),
+        ...cand.filter(x=>x.length===8)
+      ]).slice(0, 30);
 
-    function showError(message) {
-      document.getElementById('error').innerHTML = `
-        <div class="error">
-          <strong>⚠️ שגיאה</strong><br>
-          ${message}
-        </div>
-      `;
-      document.getElementById('error').style.display = 'block';
-    }
+      candIdx = 0;
+      elPlate.value = candidates[0];
 
-    document.getElementById('plateInput').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') searchVehicle();
+      renderChips();
+      updateTryNext();
+
+      setStatus('ok', `זוהו ${candidates.length} מועמדים. מתחיל לבדוק מול המאגר...`);
+      const found = await tryCandidatesUntilFound(candidates);
+
+      if (!found){
+        setStatus('bad','לא נמצאה התאמה במאגר. נסה "מועמד הבא" או הזן ידנית.');
+        updateTryNext();
+      }
     });
 
-    document.getElementById('plateInput').addEventListener('input', (e) => {
-      e.target.value = e.target.value.replace(/\D/g, '');
+    elSearch.addEventListener('click', async ()=>{ await searchVehicle(); });
+
+    elPlate.addEventListener('input', (e)=>{
+      e.target.value = normalizePlate(e.target.value).slice(0,8);
     });
+
+    elPlate.addEventListener('keypress', async (e)=>{
+      if (e.key === 'Enter') await searchVehicle();
+    });
+
+    // init
+    clearStatus();
   </script>
 </body>
 </html>
